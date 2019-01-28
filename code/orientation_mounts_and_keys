@@ -1,0 +1,368 @@
+include<variables.scad>;
+
+/*************************************************************************************************/
+/*************************************************************************************************/
+/************************************* <NEW BASE MODULES/> ***************************************/
+module cube_peg(length, width, height)
+{
+    cube(size = [length, width, height], center = true);
+}
+/*************************************************************************************************/
+module radial_peg(radius, height)
+{
+    cylinder(r = radius, h = height, $fn = precision, center = true);
+}
+/*************************************************************************************************/
+module cube_hole(length, width, height, wall)
+{
+    difference()
+    {
+        cube_peg(length + cube_gap + wall, width + cube_gap + wall, height);
+        cube_peg(length + cube_gap, width + cube_gap, height);
+    }
+}
+/*************************************************************************************************/
+module radial_hole(radius, height, wall)
+{
+    wall = wall/2;
+    difference()
+    {
+        radial_peg(radius + radial_gap + wall, height);
+        radial_peg(radius + radial_gap, height);
+    }
+}
+/*************************************************************************************************/
+module cube_lip(length_outer, length_inner, width_outer, width_inner, height)
+{
+    difference()
+    {
+        cube(size = [length_outer, width_outer, height], center = true);
+        cube(size = [length_inner, width_inner, height], center = true);
+    }
+}
+/*************************************************************************************************/
+module cube_lid(length_outer, length_inner, width_outer, width_inner, height)
+{
+    wall_size = 2;
+    difference()
+    {
+        cube(size = [length_outer + wall_size, width_outer + wall_size, height], center = true);
+        cube_lip(length_outer + cube_gap, length_inner - cube_gap, width_outer + cube_gap, width_inner - cube_gap, height);
+    }
+    translate([0, 0, -height])
+    cube(size = [length_outer + wall_size, width_outer + wall_size, height], center = true);
+}
+/*************************************************************************************************/
+module cube_cap(length_outer, width_outer, height, wall)
+{
+    difference()
+    {
+        cube_peg(length_outer, width_outer, height);
+        translate([0, 0, -wall/2])
+        cube_peg(length_outer - wall*2, width_outer - wall*2, height - wall);
+    }
+}
+/*************************************************************************************************/
+module radial_lip(radius_outer, radius_inner, height)
+{
+    difference()
+    {
+        cylinder(r = radius_outer, h = height, $fn = precision, center = true);
+        cylinder(r = radius_inner, h = height, $fn = precision, center = true);
+    }
+}
+/*************************************************************************************************/
+module radial_lid(radius_lip_outer, radius_lip_inner, height)
+{
+    wall_radius = 2;// This is how much material is on the outside of the cap: it has nothing to do with fit.
+    difference()
+    {
+      cylinder(r = radius_lip_outer + wall_radius, h = height, $fn = precision, center = true);
+      radial_lip(radius_lip_outer + radial_gap, radius_lip_inner - radial_gap, height);
+    }
+    translate([0, 0, -height])
+    cylinder(r = radius_lip_outer + wall_radius, h = height, $fn = precision, center = true);
+}
+/*************************************************************************************************/
+module radial_cap(radius_peg, height, wall)
+{
+    difference()
+    {
+        cylinder(r = radius_peg + wall, h = height + wall, $fn = precision, center = true);
+        translate([0, 0, wall/2])
+        radial_peg(radius_peg + radial_gap, height);
+    }
+}
+/************************************* </NEW BASE MODULES> *****************************************/
+/*********************************** <NEW COMPOSITE MODULES/> **************************************/
+/***************************************************************************************************/
+
+
+module screw_head(){
+    //rotate([0,90,0])
+    //translate([screw_separation/2, 0, 0])
+    //translate([0, screw_separation/2, 0])
+    cylinder(r2 = screw_bottom_radius, r1 = screw_top_radius, h = motor_mount_depth, $fn = precision, center = true);
+}
+/***************************************************************************************************/
+module mount_base_bottom(){
+    screw_top_radius    = 3.5;
+    screw_bottom_radius = 1.75;
+    screw_height        = 10;//12.7;
+    screw_head_height   = 2;
+    nut_height        = 3;
+    nut_radius        = 5;
+    
+    flare_half_width = 1.5;
+    flare_indent     = 0.55;
+    flare_height     = nut_radius/4;//4.5;
+    
+    //Socket
+    difference(){
+        difference(){
+            //radial_peg(flare_height + (flare_half_width * flare_indent) * 2 + 0.5, screw_height + cube_gap);
+            radial_peg(caster_bolt_radius + inner_wall, screw_height + nut_height + cube_gap);
+            
+            translate([0, 0, inner_wall - cube_gap/2])
+            for(i = [0:12]){
+                rotate([0, 0, 30 * i])
+                translate([5.5, 0, 0])
+                linear_extrude(height = screw_height + cube_gap, center = true, convexity = 10, twist = 0)
+                polygon(points=[[0, -flare_half_width], [0, flare_half_width], [flare_height, (flare_half_width * flare_indent)], [flare_height, -(flare_half_width * flare_indent)]]);
+            }
+        }
+        translate([0, 0, inner_wall])
+        
+        radial_peg(6, screw_height + cube_gap);
+        radial_peg(lego_r, lego_h * 3);
+        //radial_peg(screw_bottom_radius, screw_height + cube_gap);
+        
+        //translate([0, 0,-screw_height/2 - cube_gap])
+        //screw_head();
+        //translate([0, 0, -(screw_height)/2])
+        //cylinder(r = nut_radius, h = nut_height + cube_gap, $fn = 6, center = true);
+        //translate([5, 0, 0])
+        //cube_peg(10, 20, screw_height + cube_gap);
+    }
+    
+    translate([caster_bolt_radius + inner_wall + lego_h/2, 0, 0])
+    difference(){
+        cube_peg(lego_h * 1.25, lego_h, screw_height + nut_height + cube_gap);
+        translate([0, 0, lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, lego_h * 2);
+        translate([0, 0, -lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, lego_h * 2);
+    }
+    //translate([-mount_base_radius * 1.30, 0, 0])
+    //vertical_key(screw_height + cube_gap);
+}
+/***************************************************************************************************/
+module mount_base_cutout(){
+    screw_top_radius    = 3.5;
+    screw_bottom_radius = 1.75;
+    screw_height        = 10;//12.7;
+    screw_head_height   = 2;
+    nut_height        = 3;
+    nut_radius        = 5;
+    
+    flare_half_width = 1.5 + cube_gap;
+    flare_indent     = 0.55;
+    flare_height     = nut_radius/4 + cube_gap;//4.5;
+    
+    //Socket
+    radial_peg((caster_bolt_radius + inner_wall) + radial_gap, (new_deck_height)/2 + motor_mount_depth/2);
+    //radial_peg(5.5 + radial_gap, nut_height);
+    translate([caster_bolt_radius + inner_wall/2 - cube_gap, 0, 0])
+    scale([1.5, 1.5, 1])
+    linear_extrude(height = (new_deck_height)/2 + motor_mount_depth/2, center = true, convexity = 10, twist = 0)
+                polygon(points=[[0, -(flare_half_width + cube_gap)], [0, flare_half_width + cube_gap], [flare_half_width * 2 + cube_gap, 0]]);
+    //translate([-mount_base_radius * 1.30, 0, 0])
+    //scale([(mount_base_radius + radial_gap)/mount_base_radius, (mount_base_radius + radial_gap)/mount_base_radius, 1])
+    //vertical_key(nut_height);
+}
+/*
+translate([5, 0, 0])
+difference(){
+    cube_peg(10, 20, inner_wall * 2);
+    translate([0, 0, inner_wall/2])
+    cube_peg(10, 20 - inner_wall + cube_gap * 2, inner_wall);
+}
+*/
+/***************************************************************************************************/
+module mount_base_top(){
+    screw_hole_radius = 2;
+    screw_height      = 10;
+    
+    
+    nut_height        = 3;
+    nut_radius        = 5;
+    flare_half_width = 1.5 - cube_gap;
+    flare_indent     = 0.55;
+    flare_height     = nut_radius/4 - cube_gap;//4.5;
+    peg_radius       = 7;
+    
+
+    //translate([0, 0, inner_wall * 5])
+    difference(){
+        union(){
+            for(i = [0:12]){
+                rotate([0, 0, 30 * i])
+                translate([5.5, 0, 0])
+                linear_extrude(height = screw_height, center = true, convexity = 10, twist = 0)
+                polygon(points=[[0, -flare_half_width], [0, flare_half_width], [flare_height, (flare_half_width * flare_indent)], [flare_height, -(flare_half_width * flare_indent)]]);
+            }
+            
+            //radial_peg(3.5 + radial_gap, screw_height + cube_gap - nut_height);
+            radial_peg(5.5 + radial_gap, screw_height);
+            
+            translate([0, 0, (screw_height + cube_gap -nut_height + lego_h*2)/2])
+            radial_peg(caster_bolt_radius + inner_wall, lego_h * 2);
+           
+        }
+        //Hole for screw (or Lego peg)
+        //radial_peg(screw_bottom_radius, screw_height);
+        radial_peg(lego_r, screw_height);
+        
+        translate([0, 0, (screw_height + cube_gap -nut_height + lego_h*2)/2 + lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, (caster_bolt_radius + inner_wall) * 2);
+        translate([0, 0, (screw_height + cube_gap -nut_height + lego_h*2)/2 - lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, (caster_bolt_radius + inner_wall) * 2);
+        
+        translate([(caster_bolt_radius + inner_wall + lego_h/3), 0, (screw_height + cube_gap -nut_height + lego_h*2)/2])
+        cube_peg(lego_h + cube_gap, lego_h * 2, lego_h * 2);
+        translate([-(caster_bolt_radius + inner_wall + lego_h/3), 0, (screw_height + cube_gap -nut_height + lego_h*2)/2])
+        cube_peg(lego_h + cube_gap, lego_h * 2, lego_h * 2);
+    }
+    /*
+    translate([0, 0, 11]){
+        rotate([0, 90, 0])
+        radial_hole(lego_r, lego_h, 5);
+        translate([0, 0, -lego_r * 2])
+        cube_peg(lego_h, (lego_r)* 2, lego_r);
+        translate([0, 0, lego_h])
+        rotate([0, 90, 0])
+        radial_hole(lego_r, lego_h, 5);
+    }*/
+}
+/***************************************************************************************************/
+module vertical_key(height){
+    
+    //rotate([0, 90, 0])
+    //translate([-mount_key_side * 1.5 - cube_gap, mount_key_side/4, -inner_wall/2])
+    translate([-mount_key_side/2, 0, 0])
+    union(){
+        radial_peg(mount_key_side/2, height);
+        translate([mount_key_side/2, 0, 0])
+        cube_peg(mount_key_side, mount_key_side, height);
+    }
+
+}
+/***************************************************************************************************/
+//Stand coming out of tilt mount to hold the actual sensor
+//rotate([180, 180, 0])
+//translate([0, inner_wall * 4, 40])
+module right_angle_key(stilt){
+    rotate([90, 90, 0])
+    //rotate([0, 0, 180])
+    //translate([-inner_wall + 8, mount_key_side + cube_gap , inner_wall])
+    //translate([32, -mount_key_side * 1.35, 18])
+    difference(){
+        translate([0, 0, -mount_key_side/4])
+        union(){
+            translate([0, 0, -mount_key_side/2])
+            rotate_extrude(convexity = 10, $fn = precision)
+            translate([inner_wall * 1.125, 0, 0])
+            square(mount_key_side, mount_key_side, center = false);
+            rotate_extrude(convexity = 10, $fn = 100)
+            translate([inner_wall * 2 + mount_key_side/2, 0, 0])//try to get the extrusion to happen so that circle is on top
+            circle(mount_key_side/2, $fn = precision, center = true);
+        }
+        //Make only a quarter of the turn remain
+        translate([mount_key_side * 1.5, 0, -mount_key_side/4])
+        cube_peg(mount_key_side * 3, mount_key_side * 5, mount_key_side);
+        translate([0, -mount_key_side * 1.5, -mount_key_side/4])
+        cube_peg(mount_key_side * 5, mount_key_side * 3, mount_key_side);
+    }
+    
+    //translate([mount_key_side/2 - cube_gap - radial_gap/2, -16, inner_wall * 1.5])
+    
+    rotate([0, 0, 180])
+    translate([-mount_key_side * 1.5 - cube_gap, -mount_key_side/4, -inner_wall/2])
+    union(){
+        radial_peg(mount_key_side/2, inner_wall);
+        translate([mount_key_side/2, 0, 0])
+        cube_peg(mount_key_side, mount_key_side, inner_wall);
+    }
+    
+    rotate([0, 90, 0])
+    translate([-mount_key_side * 1.5 - cube_gap, mount_key_side/4, -inner_wall/2 - stilt/2])
+    union(){
+        radial_peg(mount_key_side/2, inner_wall + stilt);
+        translate([mount_key_side/2, 0, 0])
+        cube_peg(mount_key_side, mount_key_side, inner_wall + stilt);
+    }
+    
+    
+}
+/***************************************************************************************************/
+module LDR_mount(){
+    screw_top_radius    = 3.5;
+    screw_bottom_radius = 1.75;
+    screw_height        = 10;//12.7;
+    screw_head_height   = 2;
+    nut_height        = 3;
+    nut_radius        = 5;
+    
+    flare_half_width = 1.5;
+    flare_indent     = 0.55;
+    flare_height     = nut_radius/4;//4.5;
+    
+    rotate([0, 0, 90])
+    difference(){  
+        //cube_peg((caster_nut_radius * 2) + radial_gap + inner_wall, (caster_nut_radius * 2) + radial_gap + inner_wall, caster_nut_height + cube_gap + inner_wall);
+        radial_peg(((nut_radius * 2) + radial_gap + inner_wall)/2, nut_height + cube_gap + inner_wall);
+
+        radial_peg(screw_buttom_radius, screw_height + cube_gap + inner_wall);
+        //translate([0, 0, caster_bolt_length/2 + (caster_nut_height + cube_gap)/2])
+        cylinder(r = nut_radius + radial_gap, h = nut_height + cube_gap, $fn = 6, center = true);
+        translate([0, (nut_radius + radial_gap), 0])
+        cube_peg((nut_radius * 2) + radial_gap, (nut_radius * 2) + radial_gap, screw_height + cube_gap);
+    }
+    
+    
+    translate([nut_radius + radial_gap/2 + inner_wall/2 + lego_h/2, 0, (nut_height + cube_gap * 2 + inner_wall/2)/2])
+    difference(){
+        cube_peg(lego_h * 1.25, lego_h, screw_height + nut_height + cube_gap);
+        translate([0, 0, lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, lego_h * 2);
+        translate([0, 0, -lego_h/2])
+        rotate([0, 90, 0])
+        radial_peg(lego_r, lego_h * 2);
+    }
+    //translate([-mount_base_radius * 1.30, 0, 0])
+    //vertical_key(screw_height + cube_gap);
+}
+
+
+/***************************************************************************************************/
+/***************************************************************************************************/
+
+//LDR_mount();
+//screw_head();
+//mount_base_cutout();
+//translate([0, 10, 0])
+//mount_base_bottom();
+//rotate([180, 0, 0])
+//translate([0, 0, 10])
+//mount_base_top();
+/***************************************************************************************************/
+//vertical_key();
+/***************************************************************************************************/
+//Stand coming out of tilt mount to hold the actual sensor
+//stilt = 5;
+//right_angle_key(stilt);
